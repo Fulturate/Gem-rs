@@ -16,7 +16,7 @@ use crate::errors::GemError;
 use crate::types::{Blob, ErrorWrapper, FileData, GenerateContentResponse, Role, Settings};
 
 pub type StreamResponseResult = Result<
-    Box<dyn Stream<Item = Result<GenerateContentResponse, StreamBodyError>> + Unpin>,
+    Box<dyn Stream<Item = Result<GenerateContentResponse, StreamBodyError>> + Unpin + Send>,
     GemError,
 >;
 pub type ResponseResult = Result<GenerateContentResponse, GemError>;
@@ -24,7 +24,7 @@ pub type ResponseResult = Result<GenerateContentResponse, GemError>;
 pub type StreamResponse = Box<
     dyn futures::Stream<
             Item = Result<GenerateContentResponse, reqwest_streams::error::StreamBodyError>,
-        > + Unpin,
+        > + Unpin + Send,
 >;
 
 pub type Response = GenerateContentResponse;
