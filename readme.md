@@ -16,8 +16,8 @@ projects. Future updates will include support for uploading files and images, as
 - **APIs abnormalites**: DELETE "files/x" dosen't delete the cloud cache related to the API key, it only change the URI.
 - **API Key Env** [✅]
 
-- **Adding tool use e.g. [grounding](https://ai.google.dev/gemini-api/docs/grounding?lang=python#configure-search-tool)
-  ** []
+- **Grounding support** [✅]
+- **Adding other tools** []
 - **Configure thinking to be separated from the response in the response handling** []
 
 ## Notes
