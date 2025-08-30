@@ -120,7 +120,7 @@ pub struct Candidate {
 }
 
 impl Candidate {
-    pub(crate) fn get_content(&self) -> Option<&Content> {
+    pub fn get_content(&self) -> Option<&Content> {
         self.content.as_ref()
     }
 
@@ -172,7 +172,7 @@ pub struct Part {
 #[serde(rename_all = "camelCase")]
 pub struct Blob {
     mime_type: String,
-    data: String, // Base64 encoded data
+    pub data: String, // Base64 encoded data
 }
 
 impl Blob {
