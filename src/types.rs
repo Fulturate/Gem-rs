@@ -56,6 +56,7 @@ pub struct GenerateContentResponse {
     prompt_feedback: Option<PromptFeedback>,
     usage_metadata: Option<UsageMetadata>,
     model_version: Option<String>,
+    response_id: Option<String>,
 }
 
 impl GenerateContentResponse {
@@ -216,12 +217,22 @@ pub(crate) struct SafetyRating {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TokenDetails {
+    modality: String,
+    token_count: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UsageMetadata {
-    prompt_token_count: Option<i32>, // Number of tokens in the prompt
-    cached_content_token_count: Option<i32>, // Number of tokens in cached content
+    prompt_token_count: Option<i32>,     // Number of tokens in the prompt
     candidates_token_count: Option<i32>, // Number of tokens in the generated candidates
-    total_token_count: Option<i32>,  // Total number of tokens (prompt + candidates)
+    total_token_count: Option<i32>,      // Total number of tokens (prompt + candidates)
+    cached_content_token_count: Option<i32>, // Number of tokens in cached content
+    // candidates_token_count: Option<i32>, // Number of tokens in the generated candidates
     thoughts_token_count: Option<i32>, // Number of tokens in the generated thoughts
+    prompt_token_details: Option<Vec<TokenDetails>>,
+    candidate_tokens_details: Option<Vec<TokenDetails>>,
 }
 
 impl UsageMetadata {
