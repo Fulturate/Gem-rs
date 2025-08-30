@@ -90,6 +90,9 @@ pub enum Models {
     #[serde(rename = "gemini-2.5-flash-preview-04-17")]
     Gemini25FlashPreview0417,
 
+    #[serde(rename = "gemini-2.5-flash-image-preview")]
+    Gemini25FlashImagePreview,
+
     #[serde(rename = "gemma-3-1b-it")]
     Gemma3_1b,
 

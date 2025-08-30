@@ -18,6 +18,13 @@ pub enum PartData {
     Text { text: String },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FunctionCall {
+    pub name: String,
+    pub args: HashMap<String, Value>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -95,6 +102,8 @@ pub struct Candidate {
     safety_ratings: Option<Vec<SafetyRating>>, // List of safety ratings for the response
     token_count: Option<i32>,            // The token count for this candidate
     index: Option<i32>,                  // Index of the candidate in the list
+    #[serde(default)]
+    pub function_call: Option<FunctionCall>,
 }
 
 impl Candidate {
