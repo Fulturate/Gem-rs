@@ -2,7 +2,6 @@ use std::{collections::HashMap, path::Path};
 
 use base64::{engine::general_purpose, Engine as _};
 use dotenv::dotenv;
-use futures::stream::Zip;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -24,10 +23,25 @@ pub struct Shell {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged, rename_all = "camelCase")] // Untagged for different types
 pub enum PartData {
-    InlineData { inline_data: Blob },
-    FileData { file_data: FileData },
-    Text { text: String },
-    ToolCode { tool_code: ToolCode },
+    InlineData {
+        #[serde(rename = "inlineData")]
+        inline_data: Blob,
+    },
+    FileData {
+        #[serde(rename = "fileData")]
+        file_data: FileData,
+    },
+    Text {
+        text: String,
+    },
+    ToolCode {
+        #[serde(rename = "toolCode")]
+        tool_code: ToolCode,
+    },
+    FunctionCall {
+        #[serde(rename = "functionCall")]
+        function_call: FunctionCall,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -449,7 +463,7 @@ impl File {
             }
 
             timeout += 1;
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         }
 
         file.api_key = api_key.to_string();
@@ -512,8 +526,8 @@ impl FileManager {
                 let mut files = self.files.lock().await;
                 files.insert(hash, file);
                 Ok(FileData {
-                    mime_type: mime_type,
-                    file_uri: file_uri,
+                    mime_type,
+                    file_uri,
                 })
             }
         }
@@ -556,8 +570,8 @@ impl FileManager {
                 let mut files = self.files.lock().await;
                 files.insert(hash, file);
                 Ok(FileData {
-                    mime_type: mime_type,
-                    file_uri: file_uri,
+                    mime_type,
+                    file_uri,
                 })
             }
         }
