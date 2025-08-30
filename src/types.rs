@@ -125,8 +125,8 @@ impl Candidate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Content {
-    parts: Vec<Part>,   // A vector of Part objects
-    role: Option<Role>, // Role field, optional; either 'user' or 'model'
+    pub parts: Vec<Part>, // A vector of Part objects
+    role: Option<Role>,   // Role field, optional; either 'user' or 'model'
 }
 
 impl Content {
@@ -139,6 +139,10 @@ impl Content {
         }
         None
     }
+
+    pub fn get_parts(&self) -> &Vec<Part> {
+        &self.parts
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,7 +153,7 @@ pub struct NoRoleContent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Part {
     #[serde(flatten)] // This enables the union-like behavior for the different possible types
-    data: PartData, // Union field that can be one of several types
+    pub data: PartData, // Union field that can be one of several types
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
