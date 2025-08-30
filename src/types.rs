@@ -1102,24 +1102,8 @@ impl Context {
                 }),
                 None => None,
             },
-            // --- ПЕРЕДАЕМ СФОРМИРОВАННЫЕ ИНСТРУМЕНТЫ ---
             tools,
         }
-        // GenerateContentRequest::new(
-        //     self,
-        //     settings.generation_config.clone(),
-        //     settings.safety_settings.clone(),
-        //     match &settings.system_instruction {
-        //         Some(instruction) => Some(NoRoleContent {
-        //             parts: vec![Part {
-        //                 data: PartData::Text {
-        //                     text: instruction.clone(),
-        //                 },
-        //             }],
-        //         }),
-        //         None => None,
-        //     },
-        // )
     }
 
     pub fn clear(&mut self) {
