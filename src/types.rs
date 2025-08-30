@@ -19,8 +19,8 @@ pub struct ToolCode {
 pub struct GoogleSearchRetrieval {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Tool {
+    #[serde(rename = "google_search")]
     pub google_search_retrieval: GoogleSearchRetrieval,
 }
 
