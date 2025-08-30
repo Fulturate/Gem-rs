@@ -1,5 +1,5 @@
 [package]
-authors = ["Ali Aish <onlyghostz@gmail.com>"]
+authors = ["Ali Aish <onlyghostz@gmail.com>", "NixxO <nixxoq@outlook.com>"]
 categories = ["api-bindings", "asynchronous"]
 description = "A Rust library that serves as a wrapper around the Google Gemini API, providing support for streaming"
 documentation = "https://docs.rs/gem-rs"
@@ -9,8 +9,8 @@ keywords = ["gemini", "api", "wrapper", "ai", "google"]
 license = "MIT OR Apache-2.0"
 name = "gem-rs"
 readme = "README.md"
-repository = "https://github.com/0xhades/gem-rs"
-version = "0.1.80"
+repository = "https://github.com/fulturate/gem-rs"
+version = "0.1.81"
 
 [dependencies]
 base64 = "0.22.1"
@@ -19,12 +19,12 @@ dotenv = "0.15.0"
 futures = "0.3.30"
 log = "0.4.22"
 pretty_env_logger = "0.5.0"
-reqwest = {version = "0.12.7", features = ["json", "stream", "multipart"]}
-reqwest-streams = {version = "0.7.0", features = ["json"]}
-serde = {version = "1.0.210", features = ["derive"]}
+reqwest = { version = "0.12.7", features = ["json", "stream", "multipart"] }
+reqwest-streams = { version = "0.7.0", features = ["json"] }
+serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 sha256 = "1.5.0"
-tokio = {version = "1.40.0", features = ["full"]}
+tokio = { version = "1.40.0", features = ["full"] }
 
 [dev-dependencies]
 
@@ -37,4 +37,4 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [badges]
-maintenance = {status = "actively-developed"}
+maintenance = { status = "actively-developed" }

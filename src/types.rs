@@ -16,6 +16,15 @@ pub struct ToolCode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GoogleSearchRetrieval {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tool {
+    pub google_search_retrieval: GoogleSearchRetrieval,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Shell {
     pub code: String,
 }
@@ -807,6 +816,7 @@ pub struct Settings {
     generation_config: Option<GenerationConfig>,
     system_instruction: Option<String>,
     stream_max_json_size: Option<u32>,
+    enable_grounding_search: bool,
 }
 
 impl Settings {
@@ -816,6 +826,7 @@ impl Settings {
             generation_config: None,
             system_instruction: None,
             stream_max_json_size: Some(16384),
+            enable_grounding_search: false,
         }
     }
 
@@ -929,6 +940,10 @@ impl Settings {
     pub fn get_stream_max_json_size(&self) -> u32 {
         self.stream_max_json_size.unwrap_or(16384)
     }
+
+    pub fn set_grounding_search(&mut self, enable: bool) {
+        self.enable_grounding_search = enable;
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -938,6 +953,8 @@ pub(crate) struct GenerateContentRequest {
     safety_settings: Option<Vec<SafetySetting>>, // Optional: Safety settings to block unsafe content
     generation_config: Option<GenerationConfig>, // Optional: Configuration for model generation
     system_instruction: Option<NoRoleContent>,   // Optional: Developer set system instructions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<Tool>>, // Optional: Grounding with Google Search
 }
 
 impl GenerateContentRequest {
@@ -946,6 +963,7 @@ impl GenerateContentRequest {
         config: Option<GenerationConfig>,
         safety: Option<Vec<SafetySetting>>,
         system_instruction: Option<NoRoleContent>,
+        tools: Option<Vec<Tool>>,
     ) -> Self {
         GenerateContentRequest {
             contents: context.contents.clone(),
@@ -983,6 +1001,7 @@ impl GenerateContentRequest {
                 }),
             },
             system_instruction,
+            tools,
         }
     }
 }
@@ -1061,11 +1080,19 @@ impl Context {
     }
 
     pub fn build(&self, settings: &Settings) -> GenerateContentRequest {
-        GenerateContentRequest::new(
-            self,
-            settings.generation_config.clone(),
-            settings.safety_settings.clone(),
-            match &settings.system_instruction {
+        let tools = if settings.enable_grounding_search {
+            Some(vec![Tool {
+                google_search_retrieval: GoogleSearchRetrieval {},
+            }])
+        } else {
+            None
+        };
+
+        GenerateContentRequest {
+            contents: self.contents.clone(),
+            safety_settings: settings.safety_settings.clone(),
+            generation_config: settings.generation_config.clone(),
+            system_instruction: match &settings.system_instruction {
                 Some(instruction) => Some(NoRoleContent {
                     parts: vec![Part {
                         data: PartData::Text {
@@ -1075,7 +1102,24 @@ impl Context {
                 }),
                 None => None,
             },
-        )
+            // --- ПЕРЕДАЕМ СФОРМИРОВАННЫЕ ИНСТРУМЕНТЫ ---
+            tools,
+        }
+        // GenerateContentRequest::new(
+        //     self,
+        //     settings.generation_config.clone(),
+        //     settings.safety_settings.clone(),
+        //     match &settings.system_instruction {
+        //         Some(instruction) => Some(NoRoleContent {
+        //             parts: vec![Part {
+        //                 data: PartData::Text {
+        //                     text: instruction.clone(),
+        //                 },
+        //             }],
+        //         }),
+        //         None => None,
+        //     },
+        // )
     }
 
     pub fn clear(&mut self) {
