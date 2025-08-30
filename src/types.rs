@@ -11,11 +11,23 @@ use tokio::sync::Mutex;
 use crate::{errors::GemError, utils::get_mime_type};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolCode {
+    pub shell: Shell,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Shell {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged, rename_all = "camelCase")] // Untagged for different types
 pub enum PartData {
     InlineData { inline_data: Blob },
     FileData { file_data: FileData },
     Text { text: String },
+    ToolCode { tool_code: ToolCode },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
