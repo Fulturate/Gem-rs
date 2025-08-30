@@ -153,6 +153,7 @@ pub struct Part {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Blob {
     mime_type: String,
     data: String, // Base64 encoded data
