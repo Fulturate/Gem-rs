@@ -1,6 +1,8 @@
 # Gem-rs
 
-Gem-rs is a Rust library that serves as a wrapper around the Gemini API, providing support for streaming. This library is designed to facilitate interaction with the Gemini API, making it easier to integrate its functionalities into Rust projects. Future updates will include support for uploading files and images, as well as caching files to Gemini.
+Gem-rs is a Rust library that serves as a wrapper around the Gemini API, providing support for streaming. This library
+is designed to facilitate interaction with the Gemini API, making it easier to integrate its functionalities into Rust
+projects. Future updates will include support for uploading files and images, as well as caching files to Gemini.
 
 ## TODO List
 
@@ -14,17 +16,21 @@ Gem-rs is a Rust library that serves as a wrapper around the Gemini API, providi
 - **APIs abnormalites**: DELETE "files/x" dosen't delete the cloud cache related to the API key, it only change the URI.
 - **API Key Env** [✅]
 
-- **Adding tool use e.g. [grounding](https://ai.google.dev/gemini-api/docs/grounding?lang=python#configure-search-tool)** []
+- **Adding tool use e.g. [grounding](https://ai.google.dev/gemini-api/docs/grounding?lang=python#configure-search-tool)
+  ** []
 - **Configure thinking to be separated from the response in the response handling** []
 
 ## Notes
 
-- 2.5 Pro preview models isn't a free model! be aware, use the experimental models instead.
+- Gemini-2.5-flash-image-preview requires an API key with Tier 1 type. Be aware of trying on "free tier" keys
 - The default 'timeout(...)' is None, and you should set it if you want to.
 - When 'timeout(...)' is set, 'read_timeout(...)' is ignored according to the reqwest docs.
-- Use 'timeout(...)' for non-streaming requests. otherwise, the stream will be closed after the timeout even if the server is still responding. 
-- When using a thinking model, you may indicate to the user as "thinking" while waiting for the first tokens, cause as far i know, currently there's no way to get the thinking tokens in the gemini APIs (if possible, PR!).
-- Using "thinking_budget" isn't necessary as the thinking models will decide whether to think or not, and decide how many tokens they require.
+- Use 'timeout(...)' for non-streaming requests. otherwise, the stream will be closed after the timeout even if the
+  server is still responding.
+- When using a thinking model, you may indicate to the user as "thinking" while waiting for the first tokens, cause as
+  far i know, currently there's no way to get the thinking tokens in the gemini APIs (if possible, PR!).
+- Using "thinking_budget" isn't necessary as the thinking models will decide whether to think or not, and decide how
+  many tokens they require.
 
 ## Dependencies
 
