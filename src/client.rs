@@ -190,8 +190,6 @@ impl Client {
             Err(e) => return Err(GemError::ResponseError((e, status_code))),
         };
 
-        log::info!("Response: {}", response_text);
-
         let response = match status_code {
             StatusCode::OK => match serde_json::from_str::<GenerateContentResponse>(&response_text)
             {
