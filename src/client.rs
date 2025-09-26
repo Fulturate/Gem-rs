@@ -166,11 +166,7 @@ impl Client {
             self.model.to_string()
         );
 
-        log::info!("URL: {}", url);
-
         let context = context.build(settings);
-        log::info!("Request: {:#?}", serde_json::to_string(&context).unwrap());
-
         let response = match self
             .client
             .post(url)
