@@ -1,13 +1,12 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, time::Duration};
 
+use crate::{errors::GemError, utils::get_mime_type};
 use base64::{engine::general_purpose, Engine as _};
 use dotenv::dotenv;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
-
-use crate::{errors::GemError, utils::get_mime_type};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -331,8 +330,9 @@ impl File {
         bytes: Vec<u8>,
         mime_type: &str,
         api_key: &str,
+        timeout: Option<Duration>,
     ) -> Result<Self, GemError> {
-        Self::upload(file_name, bytes, mime_type, api_key).await
+        Self::upload(file_name, bytes, mime_type, api_key, timeout).await
     }
 
     async fn upload(
@@ -340,10 +340,17 @@ impl File {
         buffer: Vec<u8>,
         mime_type: &str,
         api_key: &str,
+        timeout: Option<Duration>,
     ) -> Result<Self, GemError> {
         let num_bytes = buffer.len();
 
-        let client = reqwest::Client::new();
+        let mut client = reqwest::Client::builder();
+
+        if let Some(timeout) = timeout {
+            client = client.timeout(timeout);
+        }
+
+        let client = client.build().unwrap();
 
         let reserve_response = match client
             .post("https://generativelanguage.googleapis.com/upload/v1beta/files")
@@ -524,12 +531,13 @@ impl FileManager {
         file_name: &str,
         bytes: Vec<u8>,
         mime_type: &str,
+        timeout: Option<Duration>,
     ) -> Result<FileData, GemError> {
         let hash = sha256::digest(&bytes);
         match self.get_file(&hash).await {
             Some(file) => Ok(file),
             None => {
-                let file = File::new(file_name, bytes, mime_type, &self.api_key).await?;
+                let file = File::new(file_name, bytes, mime_type, &self.api_key, timeout).await?;
                 let mime_type = file.mime_type.clone();
                 let file_uri = file.uri.clone();
                 let mut files = self.files.lock().await;
@@ -542,7 +550,11 @@ impl FileManager {
         }
     }
 
-    pub async fn add_file(&mut self, file_path: &Path) -> Result<FileData, GemError> {
+    pub async fn add_file(
+        &mut self,
+        file_path: &Path,
+        timeout: Option<Duration>,
+    ) -> Result<FileData, GemError> {
         if !file_path.exists() {
             return Err(GemError::FileError("File does not exist".to_string()));
         }
@@ -573,7 +585,7 @@ impl FileManager {
         match self.get_file(&hash).await {
             Some(file) => Ok(file),
             None => {
-                let file = File::new(file_name, buffer, &mime_type, &self.api_key).await?;
+                let file = File::new(file_name, buffer, &mime_type, &self.api_key, timeout).await?;
                 let mime_type = file.mime_type.clone();
                 let file_uri = file.uri.clone();
                 let mut files = self.files.lock().await;
