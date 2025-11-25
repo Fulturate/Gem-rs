@@ -1,12 +1,13 @@
 use std::{collections::HashMap, path::Path, time::Duration};
 
-use crate::{errors::GemError, utils::get_mime_type};
 use base64::{engine::general_purpose, Engine as _};
 use dotenv::dotenv;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
+
+use crate::{errors::GemError, utils::get_mime_type};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -344,13 +345,12 @@ impl File {
     ) -> Result<Self, GemError> {
         let num_bytes = buffer.len();
 
-        let mut client = reqwest::Client::builder();
+        let mut client_builder = reqwest::Client::builder();
 
-        if let Some(timeout) = timeout {
-            client = client.timeout(timeout);
+        if let Some(t) = timeout {
+            client_builder = client_builder.timeout(t);
         }
-
-        let client = client.build().unwrap();
+        let client = client_builder.build().unwrap_or(reqwest::Client::new());
 
         let reserve_response = match client
             .post("https://generativelanguage.googleapis.com/upload/v1beta/files")
@@ -418,16 +418,13 @@ impl File {
             }
         };
 
-        // if let Some(name) = file.name.split('/').last() {
-        //     file.name = name.to_string();
-        // }
-
-        let mut max_attempts = match timeout {
-            Some(duration) => (duration.as_secs() / 3).max(1),
-            None => 100
+        // Check if the file is processed with timeout
+        let sleep_duration = Duration::from_secs(3);
+        let max_attempts = match timeout {
+            Some(t) => (t.as_secs() / sleep_duration.as_secs()).max(1),
+            None => 100,
         };
 
-        // Check if the file is processed with timeout
         let mut attempts = 0;
         loop {
             let file_state = match client
@@ -484,7 +481,7 @@ impl File {
             }
 
             attempts += 1;
-            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            tokio::time::sleep(sleep_duration).await;
         }
 
         file.api_key = api_key.to_string();
