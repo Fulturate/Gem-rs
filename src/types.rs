@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::Path, time::Duration};
+use std::{
+    collections::HashMap,
+    path::Path,
+    time::{Duration, Instant},
+};
 
 use base64::{engine::general_purpose, Engine as _};
 use dotenv::dotenv;
@@ -30,7 +34,7 @@ pub struct Shell {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged, rename_all = "camelCase")] // Untagged for different types
+#[serde(untagged, rename_all = "camelCase")]
 pub enum PartData {
     InlineData {
         #[serde(rename = "inlineData")]
@@ -195,7 +199,7 @@ pub struct Part {
 #[serde(rename_all = "camelCase")]
 pub struct Blob {
     pub mime_type: String,
-    pub data: String, // Base64 encoded data
+    pub data: String,
 }
 
 impl Blob {
@@ -346,9 +350,10 @@ impl File {
         let num_bytes = buffer.len();
 
         let mut client_builder = reqwest::Client::builder();
-
         if let Some(t) = timeout {
             client_builder = client_builder.timeout(t);
+        } else {
+            client_builder = client_builder.timeout(Duration::from_secs(300));
         }
         let client = client_builder.build().unwrap_or(reqwest::Client::new());
 
@@ -370,6 +375,14 @@ impl File {
             Err(e) => return Err(GemError::FileError(e.to_string())),
         };
 
+        if !reserve_response.status().is_success() {
+            let error_text = reserve_response.text().await.unwrap_or_default();
+            return Err(GemError::FileError(format!(
+                "Failed to start upload: {}",
+                error_text
+            )));
+        }
+
         let location = match reserve_response.headers().get("X-Goog-Upload-URL") {
             Some(loc) => match loc.to_str() {
                 Ok(l) => l,
@@ -382,7 +395,6 @@ impl File {
             }
         };
 
-        // Uploading the file's bytes
         let upload_response = match client
             .put(location)
             .header("Content-Length", num_bytes.to_string())
@@ -395,6 +407,14 @@ impl File {
             Ok(response) => response,
             Err(e) => return Err(GemError::FileError(e.to_string())),
         };
+
+        if !upload_response.status().is_success() {
+            let error_text = upload_response.text().await.unwrap_or_default();
+            return Err(GemError::FileError(format!(
+                "Failed to upload bytes: {}",
+                error_text
+            )));
+        }
 
         let upload_text_response = match upload_response.text().await {
             Ok(t) => t,
@@ -410,7 +430,11 @@ impl File {
                         return Err(GemError::FileError(e.to_string()));
                     }
                 },
-                None => return Err(GemError::FileError("File data not found".to_string())),
+                None => {
+                    return Err(GemError::FileError(
+                        "File data not found in response".to_string(),
+                    ))
+                }
             },
             Err(e) => {
                 log::error!("File error [1]: {} - Response: {}", e, upload_text_response);
@@ -418,16 +442,17 @@ impl File {
             }
         };
 
-        // Check if the file is processed with timeout
-        let sleep_duration = Duration::from_secs(3);
-        let max_attempts = match timeout {
-            Some(t) => (t.as_secs() / sleep_duration.as_secs()).max(1),
-            None => 100,
-        };
-
-        let mut attempts = 0;
+        let start_time = Instant::now();
+        let time_limit = timeout.unwrap_or(Duration::from_secs(600));
         loop {
-            let file_state = match client
+            if start_time.elapsed() > time_limit {
+                return Err(GemError::FileError(format!(
+                    "File processing timeout after {:?}",
+                    time_limit
+                )));
+            }
+
+            let file_state_response = match client
                 .get(&format!(
                     "https://generativelanguage.googleapis.com/v1beta/{}",
                     file.name
@@ -440,20 +465,18 @@ impl File {
                 Err(e) => return Err(GemError::FileError(e.to_string())),
             };
 
-            let file_state_text_response = match file_state.text().await {
+            let file_state_text = match file_state_response.text().await {
                 Ok(t) => t,
                 Err(e) => return Err(GemError::FileError(e.to_string())),
             };
 
-            let file_state: File = match serde_json::from_str::<File>(&file_state_text_response) {
+            let file_state: File = match serde_json::from_str::<File>(&file_state_text) {
                 Ok(f) => f,
                 Err(e) => {
-                    log::error!(
-                        "File error [3]: {:#?}, response: {:#?}",
-                        e,
-                        file_state_text_response
-                    );
-                    return Err(GemError::FileError("File data not found".to_string()));
+                    log::error!("File error [3]: {:#?}, response: {:#?}", e, file_state_text);
+                    return Err(GemError::FileError(
+                        "Failed to parse file state".to_string(),
+                    ));
                 }
             };
 
@@ -471,24 +494,20 @@ impl File {
                         .message,
                 ));
             } else if file_state.state != "PROCESSING" {
-                return Err(GemError::FileError(
-                    "File processing unknown state".to_string(),
-                ));
+                log::warn!("Unknown file state: {}", file_state.state);
+                return Err(GemError::FileError(format!(
+                    "File processing unknown state: {}",
+                    file_state.state
+                )));
             }
 
-            if attempts >= max_attempts {
-                return Err(GemError::FileError("File processing timeout".to_string()));
-            }
-
-            attempts += 1;
-            tokio::time::sleep(sleep_duration).await;
+            tokio::time::sleep(Duration::from_secs(3)).await;
         }
 
         file.api_key = api_key.to_string();
         Ok(file)
     }
 
-    //TODO: Something with the API cause the cached files in cloud to change uri every time they are deleted
     async fn delete(self) -> Result<(), GemError> {
         log::info!("Deleting file: {:#?}", self);
         if self.api_key == "" {
@@ -682,7 +701,6 @@ impl FileManager {
                     }
                 },
                 None => {
-                    // Means there are no files, not an error
                     break;
                 }
             };
@@ -795,23 +813,6 @@ impl ThinkingConfig {
         }
     }
 }
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct ThinkingBudget {
-//     // Rename the *field* within this struct during serialization/deserialization
-//     #[serde(rename = "thinkingBudget")]
-//     value: u32, // Give the inner value a field name (e.g., 'value')
-// }
-
-// // Implement a helper function to easily create ThinkingBudget instances
-// impl ThinkingBudget {
-//     pub fn new(value: u32) -> Self {
-//         ThinkingBudget { value }
-//     }
-
-//     pub fn value(&self) -> u32 {
-//         self.value
-//     }
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1138,88 +1139,5 @@ impl Context {
 
     pub fn get_contents_mut(&mut self) -> &mut Vec<Content> {
         &mut self.contents
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    #[ignore]
-    #[test]
-    fn test_deserialize_generate_content_response() {
-        let json_data = r#"
-        {
-            "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {
-                                "text": "Sample text"
-                            }
-                        ],
-                        "role": "model"
-                    },
-                    "finishReason": "STOP",
-                    "safetyRatings": [
-                        {
-                            "category": "violence",
-                            "probability": "low",
-                            "blocked": false
-                        }
-                    ],
-                    "tokenCount": 10,
-                    "index": 0
-                }
-            ],
-            "promptFeedback": {
-                "blockReason": "SAFETY",
-                "safetyRatings": [
-                    {
-                        "category": "violence",
-                        "probability": "low",
-                        "blocked": false
-                    }
-                ]
-            },
-            "usageMetadata": {
-                "promptTokenCount": 5,
-                "cachedContentTokenCount": 3,
-                "candidatesTokenCount": 10,
-                "totalTokenCount": 18
-            }
-        }
-        "#;
-
-        let response: GenerateContentResponse = serde_json::from_str(json_data).unwrap();
-
-        assert_eq!(response.candidates.len(), 1);
-        let candidate = &response.candidates[0];
-        assert_eq!(candidate.content.as_ref().unwrap().parts.len(), 1);
-        assert_eq!(
-            candidate.content.as_ref().unwrap().role.as_ref().unwrap(),
-            &Role::Model
-        );
-        assert_eq!(
-            candidate.finish_reason.as_ref().unwrap(),
-            &FinishReason::Stop
-        );
-        assert_eq!(candidate.safety_ratings.as_ref().unwrap().len(), 1);
-        assert_eq!(candidate.token_count.unwrap(), 10);
-        assert_eq!(candidate.index.unwrap(), 0);
-
-        let prompt_feedback = response.prompt_feedback.as_ref().unwrap();
-        assert_eq!(
-            prompt_feedback.block_reason.as_ref().unwrap(),
-            &BlockReason::Safety
-        );
-        assert_eq!(prompt_feedback.safety_ratings.len(), 1);
-
-        let usage_metadata = response.usage_metadata.as_ref().unwrap();
-        assert_eq!(usage_metadata.prompt_token_count.unwrap(), 5);
-        assert_eq!(usage_metadata.cached_content_token_count.unwrap(), 3);
-        assert_eq!(usage_metadata.candidates_token_count.unwrap(), 10);
-        assert_eq!(usage_metadata.total_token_count.unwrap(), 18);
     }
 }
