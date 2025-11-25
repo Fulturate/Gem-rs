@@ -422,8 +422,13 @@ impl File {
         //     file.name = name.to_string();
         // }
 
+        let mut max_attempts = match timeout {
+            Some(duration) => (duration.as_secs() / 3).max(1),
+            None => 100
+        };
+
         // Check if the file is processed with timeout
-        let mut timeout = 0;
+        let mut attempts = 0;
         loop {
             let file_state = match client
                 .get(&format!(
@@ -474,11 +479,11 @@ impl File {
                 ));
             }
 
-            if timeout >= 3 {
+            if attempts >= max_attempts {
                 return Err(GemError::FileError("File processing timeout".to_string()));
             }
 
-            timeout += 1;
+            attempts += 1;
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         }
 
