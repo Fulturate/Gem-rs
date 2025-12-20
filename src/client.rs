@@ -11,7 +11,7 @@ use futures::Stream;
 use reqwest::{Client as webClient, StatusCode};
 use reqwest_streams::*;
 
-use crate::api::{Models, GENERATE_CONTENT, STREAM_GENERATE_CONTENT};
+use crate::api::{Models, DEFAULT_BASE_URL};
 use crate::errors::GemError;
 use crate::types::{Blob, ErrorWrapper, FileData, GenerateContentResponse, Role, Settings};
 
@@ -24,7 +24,8 @@ pub type ResponseResult = Result<GenerateContentResponse, GemError>;
 pub type StreamResponse = Box<
     dyn futures::Stream<
             Item = Result<GenerateContentResponse, reqwest_streams::error::StreamBodyError>,
-        > + Unpin + Send,
+        > + Unpin
+        + Send,
 >;
 
 pub type Response = GenerateContentResponse;
@@ -45,6 +46,7 @@ pub struct Config {
     read_timeout: std::time::Duration,
     model: Models,
     context: Context,
+    base_url: String,
 }
 
 impl GemSessionBuilder {
@@ -56,6 +58,7 @@ impl GemSessionBuilder {
             read_timeout: std::time::Duration::from_secs(30),
             model: Models::default(),
             context: Context::new(),
+            base_url: DEFAULT_BASE_URL.to_string(),
         })
     }
 
@@ -68,6 +71,7 @@ impl GemSessionBuilder {
                 None,
                 std::time::Duration::from_secs(30),
                 std::time::Duration::from_secs(30),
+                DEFAULT_BASE_URL.to_string(),
             ),
             context: Context::new(),
         }
@@ -114,6 +118,12 @@ impl GemSessionBuilder {
         self
     }
 
+    /// Sets a custom base URL for the Gemini API.
+    pub fn base_url(mut self, url: &str) -> Self {
+        self.0.base_url = url.trim_end_matches('/').to_string();
+        self
+    }
+
     /// Builds a `GemSession` with the configured settings and provided API key.
     pub fn build(self) -> GemSession {
         dotenv().ok();
@@ -127,6 +137,7 @@ pub struct Client {
     client: webClient,
     api_key: String,
     model: Models,
+    base_url: String,
 }
 
 impl Client {
@@ -137,11 +148,11 @@ impl Client {
         timeout: Option<std::time::Duration>,
         read_timeout: std::time::Duration,
         connect_timeout: std::time::Duration,
+        base_url: String,
     ) -> Self {
-
         let mut client = webClient::builder()
-                .read_timeout(read_timeout)
-                .connect_timeout(connect_timeout);
+            .read_timeout(read_timeout)
+            .connect_timeout(connect_timeout);
 
         if let Some(timeout) = timeout {
             client = client.timeout(timeout);
@@ -151,6 +162,7 @@ impl Client {
             client: client.build().unwrap_or(webClient::new()),
             api_key,
             model,
+            base_url,
         }
     }
 
@@ -161,8 +173,8 @@ impl Client {
         settings: &Settings,
     ) -> ResponseResult {
         let url = format!(
-            "{}{}:generateContent",
-            GENERATE_CONTENT,
+            "{}/v1beta/models/{}:generateContent",
+            self.base_url,
             self.model.to_string()
         );
 
@@ -233,8 +245,8 @@ impl Client {
         settings: &Settings,
     ) -> StreamResponseResult {
         let url = format!(
-            "{}{}:streamGenerateContent",
-            STREAM_GENERATE_CONTENT,
+            "{}/v1beta/models/{}:streamGenerateContent",
+            self.base_url,
             self.model.to_string()
         );
 
@@ -284,6 +296,7 @@ impl GemSession {
                 config.timeout,
                 config.read_timeout,
                 config.connect_timeout,
+                config.base_url,
             ),
             context: config.context,
         }
@@ -501,7 +514,7 @@ mod tests {
         let mut session = GemSession::Builder()
             .connect_timeout(std::time::Duration::from_secs(30))
             .timeout(Some(std::time::Duration::from_secs(30)))
-            .model(Models::Gemini25FlashPreview0417)
+            .model(Models::Gemini25Flash)
             .context(Context::new())
             .build();
 

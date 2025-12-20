@@ -7,11 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Base URL for generating content using the Gemini API.
-pub const GENERATE_CONTENT: &str = "https://generativelanguage.googleapis.com/v1beta/models/";
-
-/// Base URL for streaming content generation using the Gemini API.
-pub const STREAM_GENERATE_CONTENT: &str =
-    "https://generativelanguage.googleapis.com/v1beta/models/";
+pub const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
 
 /// Enum representing different Gemini API models.
 ///
@@ -80,18 +76,24 @@ pub enum Models {
     #[serde(rename = "gemini-2.0-flash-lite")]
     Gemini2FlashLite,
 
-    #[serde(rename = "gemini-2.5-pro-preview-03-25")]
-    Gemini25ProPreview0325,
+    #[serde(rename = "gemini-2.5-pro")]
+    Gemini25Pro,
 
-    #[serde(rename = "gemini-2.5-pro-exp-03-25")]
-    Gemini25ProExp0325,
+    #[serde(rename = "gemini-2.5-flash")]
+    Gemini25Flash,
 
     #[default]
-    #[serde(rename = "gemini-2.5-flash-preview-04-17")]
-    Gemini25FlashPreview0417,
+    #[serde(rename = "gemini-2.5-flash-lite-latest")]
+    Gemini25FlashLiteLatest,
 
-    #[serde(rename = "gemini-2.5-flash-image-preview")]
+    #[serde(rename = "gemini-2.5-flash-image")]
     Gemini25FlashImagePreview,
+
+    #[serde(rename = "gemini-3.0-pro-preview")]
+    Gemini30ProPreview,
+
+    #[serde(rename = "gemini-3.0-flash-preview")]
+    Gemini30FlashPreview,
 
     #[serde(rename = "gemma-3-1b-it")]
     Gemma3_1b,

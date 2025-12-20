@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
-use crate::{errors::GemError, utils::get_mime_type};
+use crate::{api::DEFAULT_BASE_URL, errors::GemError, utils::get_mime_type};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -336,8 +336,9 @@ impl File {
         mime_type: &str,
         api_key: &str,
         timeout: Option<Duration>,
+        base_url: &str,
     ) -> Result<Self, GemError> {
-        Self::upload(file_name, bytes, mime_type, api_key, timeout).await
+        Self::upload(file_name, bytes, mime_type, api_key, timeout, base_url).await
     }
 
     async fn upload(
@@ -346,6 +347,7 @@ impl File {
         mime_type: &str,
         api_key: &str,
         timeout: Option<Duration>,
+        base_url: &str,
     ) -> Result<Self, GemError> {
         let num_bytes = buffer.len();
 
@@ -357,8 +359,10 @@ impl File {
         }
         let client = client_builder.build().unwrap_or(reqwest::Client::new());
 
+        let upload_url = format!("{}/upload/v1beta/files", base_url);
+
         let reserve_response = match client
-            .post("https://generativelanguage.googleapis.com/upload/v1beta/files")
+            .post(upload_url)
             .query(&[("key", api_key)])
             .header("X-Goog-Upload-Protocol", "resumable")
             .header("X-Goog-Upload-Command", "start")
@@ -453,10 +457,7 @@ impl File {
             }
 
             let file_state_response = match client
-                .get(&format!(
-                    "https://generativelanguage.googleapis.com/v1beta/{}",
-                    file.name
-                ))
+                .get(&format!("{}/v1beta/{}", base_url, file.name))
                 .query(&[("key", api_key)])
                 .send()
                 .await
@@ -534,6 +535,7 @@ impl File {
 pub struct FileManager {
     files: Mutex<HashMap<String, File>>,
     api_key: String,
+    base_url: String,
 }
 
 impl FileManager {
@@ -544,7 +546,12 @@ impl FileManager {
         Self {
             files: Mutex::new(HashMap::new()),
             api_key: api_key.to_string(),
+            base_url: DEFAULT_BASE_URL.to_string(),
         }
+    }
+
+    pub fn set_base_url(&mut self, url: &str) {
+        self.base_url = url.trim_end_matches('/').to_string();
     }
 
     pub async fn add_file_from_bytes(
@@ -558,7 +565,15 @@ impl FileManager {
         match self.get_file(&hash).await {
             Some(file) => Ok(file),
             None => {
-                let file = File::new(file_name, bytes, mime_type, &self.api_key, timeout).await?;
+                let file = File::new(
+                    file_name,
+                    bytes,
+                    mime_type,
+                    &self.api_key,
+                    timeout,
+                    &self.base_url,
+                )
+                .await?;
                 let mime_type = file.mime_type.clone();
                 let file_uri = file.uri.clone();
                 let mut files = self.files.lock().await;
@@ -606,7 +621,15 @@ impl FileManager {
         match self.get_file(&hash).await {
             Some(file) => Ok(file),
             None => {
-                let file = File::new(file_name, buffer, &mime_type, &self.api_key, timeout).await?;
+                let file = File::new(
+                    file_name,
+                    buffer,
+                    &mime_type,
+                    &self.api_key,
+                    timeout,
+                    &self.base_url,
+                )
+                .await?;
                 let mime_type = file.mime_type.clone();
                 let file_uri = file.uri.clone();
                 let mut files = self.files.lock().await;
@@ -666,7 +689,7 @@ impl FileManager {
         let mut page_token: Option<String> = None;
 
         loop {
-            let mut request = client.get("https://generativelanguage.googleapis.com/v1beta/files");
+            let mut request = client.get(format!("{}/v1beta/files", self.base_url));
 
             if let Some(token) = &page_token {
                 request = request.query(&[("pageToken", token), ("key", &self.api_key)]);
